@@ -46,8 +46,13 @@ func scanPoint(p *Point, src interface{}) error {
 		return nil
 	}
 
-	gs := ewkb.ScannerPrefixSRID(p)
-	return gs.Scan(src)
+	gs := ewkb.ScannerPrefixSRID(&p.Point)
+	err := gs.Scan(src)
+	if err != nil {
+		return err
+	}
+	p.SRID = gs.SRID
+	return nil
 }
 
 func newRandNum(nextInt func() int64) float64 {
