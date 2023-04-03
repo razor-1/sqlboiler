@@ -10,19 +10,16 @@ import (
 const defaultSRID = 4326
 
 // Point is the fundamental two-dimensional building block for geometric types.
-// X and Y are the respective coordinates, as floating-point numbers
 type Point struct {
-	orb.Point
-	// X    float64 `json:"x"`
-	// Y    float64 `json:"y"`
-	SRID int `json:"srid"`
+	OrbPoint orb.Point
+	SRID     int `json:"srid"`
 }
 
 // NewPoint creates a point
 func NewPoint(X, Y float64, SRID int) Point {
 	return Point{
-		Point: orb.Point{X, Y},
-		SRID:  SRID,
+		OrbPoint: orb.Point{X, Y},
+		SRID:     SRID,
 	}
 }
 
@@ -37,7 +34,7 @@ func (p *Point) Scan(src interface{}) error {
 }
 
 func valuePoint(p Point) (driver.Value, error) {
-	return ewkb.ValuePrefixSRID(p.Point, p.SRID).Value()
+	return ewkb.ValuePrefixSRID(p.OrbPoint, p.SRID).Value()
 }
 
 func scanPoint(p *Point, src interface{}) error {
@@ -46,8 +43,13 @@ func scanPoint(p *Point, src interface{}) error {
 		return nil
 	}
 
-	gs := ewkb.ScannerPrefixSRID(p)
-	return gs.Scan(src)
+	gs := ewkb.ScannerPrefixSRID(&p.OrbPoint)
+	err := gs.Scan(src)
+	if err != nil {
+		return err
+	}
+	p.SRID = gs.SRID
+	return nil
 }
 
 func newRandNum(nextInt func() int64) float64 {
