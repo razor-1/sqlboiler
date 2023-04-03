@@ -502,6 +502,8 @@ func (m *MySQLDriver) TranslateTableColumnType(c drivers.Column, tableName strin
 			c.Type = "types.NullDecimal"
 		case "json":
 			c.Type = "null.JSON"
+		case "point":
+			c.Type = "mygeo.NullPoint"
 		default:
 			if len(strmangle.ParseEnumVals(c.DBType)) > 0 && m.addEnumTypes {
 				c.Type = strmangle.TitleCase(tableName) + m.enumNullPrefix + strmangle.TitleCase(c.Name)
@@ -558,6 +560,8 @@ func (m *MySQLDriver) TranslateTableColumnType(c drivers.Column, tableName strin
 			c.Type = "types.Decimal"
 		case "json":
 			c.Type = "types.JSON"
+		case "point":
+			c.Type = "mygeo.Point"
 		default:
 			if len(strmangle.ParseEnumVals(c.DBType)) > 0 && m.addEnumTypes {
 				c.Type = strmangle.TitleCase(tableName) + strmangle.TitleCase(c.Name)
@@ -684,6 +688,12 @@ func (MySQLDriver) Imports() (col importers.Collection, err error) {
 		},
 		"types.NullDecimal": {
 			ThirdParty: importers.List{`"github.com/razor-1/sqlboiler/v4/types"`},
+		},
+		"mygeo.Point": {
+			ThirdParty: importers.List{`"github.com/razor-1/sqlboiler/v4/types/mygeo"`},
+		},
+		"mygeo.NullPoint": {
+			ThirdParty: importers.List{`"github.com/razor-1/sqlboiler/v4/types/mygeo"`},
 		},
 	}
 	return col, err
