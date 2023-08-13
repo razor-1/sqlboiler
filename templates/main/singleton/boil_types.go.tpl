@@ -1,5 +1,6 @@
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"github.com/razor-1/sqlboiler/v4/queries/qm"
 )
@@ -25,8 +26,9 @@ type updateCache struct {
 }
 
 type fkRelationship struct {
-	Table  string
-	Column string
+	Table    string
+	Column   string
+	Nullable bool
 }
 
 type relationMap map[string]fkRelationship
@@ -83,6 +85,11 @@ func JoinClause(sourceTable string, sourceColumn string, relationMap relationMap
 	return
 }
 
+type columnRelation struct {
+    column   string
+    relation fkRelationship
+}
+
 // given the name of a type, find which column in our table has a foreign key relationship
 // this is done by finding the table name and then looking for it in the relationmap
 func getSourceColumn(typeName string, rColumns relationMap) (sourceColumn string, err error) {
@@ -92,13 +99,29 @@ func getSourceColumn(typeName string, rColumns relationMap) (sourceColumn string
 		return
 	}
 
+	possible := make([]columnRelation, 0, len(rColumns))
 	for sc, relation := range rColumns {
 		if relation.Table == table {
-			sourceColumn = sc
-			return
+			possible = append(possible, columnRelation{column: sc, relation: relation})
 		}
 	}
-	err = errors.New("No source column found for that type name")
+
+	noColumnErr := errors.New("No source column found for that type name")
+	if len(possible) == 0 {
+		err = noColumnErr
+		return
+	}
+
+	// There can be multiple relations to the same table. Prioritize the non-nullable and then sort alphabetically.
+	// At least this way it's consistent.
+	sort.Slice(possible, func(i, j int) bool {
+		if !possible[i].relation.Nullable && possible[j].relation.Nullable {
+			return true
+		}
+		return strings.Compare(possible[i].column, possible[j].column) < 0
+	})
+
+	sourceColumn = possible[0].column
 	return
 }
 

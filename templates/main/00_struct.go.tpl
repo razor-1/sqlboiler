@@ -45,8 +45,9 @@ var {{$alias.UpSingular}}RelationshipColumns = relationMap{
 		{{- $relAlias := $alias.Relationship .Name -}}
         {{- $colAlias := $alias.Column .Column -}}
 		{{$alias.UpSingular}}Columns.{{$colAlias}}: {
-			Table: TableNames.{{titleCase .ForeignTable}},
-			Column: {{$fAlias.UpSingular}}Columns.{{index $fAlias.Columns .ForeignColumn}},
+			Table:    TableNames.{{titleCase .ForeignTable}},
+			Column:   {{$fAlias.UpSingular}}Columns.{{index $fAlias.Columns .ForeignColumn}},
+			Nullable: {{if .Nullable}}true{{else}}false{{end}},
 		},
 	{{end -}}
 }
