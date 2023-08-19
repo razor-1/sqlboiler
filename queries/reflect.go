@@ -93,27 +93,27 @@ func (q *Query) BindG(ctx context.Context, obj interface{}) error {
 //
 // Example usage:
 //
-//   type JoinStruct struct {
-//     // User1 can have it's struct fields bound to since it specifies
-//     // ,bind in the struct tag, it will look specifically for
-//     // fields that are prefixed with "user." returning from the query.
-//     // For example "user.id" column name will bind to User1.ID
-//     User1      *models.User `boil:"user,bind"`
-//     // User2 will follow the same rules as noted above except it will use
-//     // "friend." as the prefix it's looking for.
-//     User2      *models.User `boil:"friend,bind"`
-//     // RandomData will not be recursed into to look for fields to
-//     // bind and will not be bound to because of the - for the name.
-//     RandomData myStruct     `boil:"-"`
-//     // Date will not be recursed into to look for fields to bind because
-//     // it does not specify ,bind in the struct tag. But it can be bound to
-//     // as it does not specify a - for the name.
-//     Date       time.Time
-//   }
+//	type JoinStruct struct {
+//	  // User1 can have it's struct fields bound to since it specifies
+//	  // ,bind in the struct tag, it will look specifically for
+//	  // fields that are prefixed with "user." returning from the query.
+//	  // For example "user.id" column name will bind to User1.ID
+//	  User1      *models.User `boil:"user,bind"`
+//	  // User2 will follow the same rules as noted above except it will use
+//	  // "friend." as the prefix it's looking for.
+//	  User2      *models.User `boil:"friend,bind"`
+//	  // RandomData will not be recursed into to look for fields to
+//	  // bind and will not be bound to because of the - for the name.
+//	  RandomData myStruct     `boil:"-"`
+//	  // Date will not be recursed into to look for fields to bind because
+//	  // it does not specify ,bind in the struct tag. But it can be bound to
+//	  // as it does not specify a - for the name.
+//	  Date       time.Time
+//	}
 //
-//   models.Users(
-//     qm.InnerJoin("users as friend on users.friend_id = friend.id")
-//   ).Bind(&joinStruct)
+//	models.Users(
+//	  qm.InnerJoin("users as friend on users.friend_id = friend.id")
+//	).Bind(&joinStruct)
 //
 // For custom objects that want to use eager loading, please see the
 // loadRelationships function.
@@ -325,7 +325,7 @@ func bindChecks(obj interface{}) (structType reflect.Type, sliceType reflect.Typ
 	}
 }
 
-//find all items in slice that start with "needle."
+// find all items in slice that start with "needle."
 func sliceTableIndex(slice []string, needle string) (map[int]bool, error) {
 	indexes := make(map[int]bool)
 	for idx, val := range slice {
@@ -432,7 +432,7 @@ func bind(rows *sql.Rows, obj interface{}, structType reflect.Type, bkind bindKi
 		}
 	*/
 
-	//see if this has the "nulljoin" option on the tag
+	// see if this has the "nulljoin" option on the tag
 	nullableIndexes := getNullableColumnIndexes(cols, structType)
 
 	foundOne := false
@@ -459,11 +459,17 @@ Rows:
 			pointers = PtrsFromMapping(reflect.Indirect(newStruct), mapping)
 		}
 
+		// any of the nullable joined columns could be null, even though the actual type of the column in the other
+		// table is not null, because it's a left join
+		// for i := range nullableIndexes {
+		// 	pointers[i] = nullType(pointers[i])
+		// }
+
 		if len(nullableIndexes) > 0 {
 			nullablePointers := make([]interface{}, len(pointers))
 			for i := 0; i < len(nullablePointers); i++ {
 				if _, ok := nullableIndexes[i]; ok {
-					nullablePointers[i] = new(sql.RawBytes)
+					nullablePointers[i] = new(interface{})
 				} else {
 					nullablePointers[i] = pointers[i]
 				}
@@ -475,9 +481,9 @@ Rows:
 
 			// see if anything that could be null actually was
 			for nullIndex, _ := range nullableIndexes {
-				rb := nullablePointers[nullIndex].(*sql.RawBytes)
+				rb, ok := nullablePointers[nullIndex].(*interface{})
 				// it's not a nil pointer, but a pointer to an empty byte slice:
-				if *rb == nil {
+				if ok && *rb == nil {
 					// change pointers at this index to allow a null value in the real Scan below
 					pointers[nullIndex] = new(sql.RawBytes)
 					nullCols = append(nullCols, cols[nullIndex])
@@ -485,8 +491,8 @@ Rows:
 			}
 		}
 
-		//for each row, store the result of findNullTables into nullTables
-		//this is used later to set the corresponding .R pointer to nil
+		// for each row, store the result of findNullTables into nullTables
+		// this is used later to set the corresponding .R pointer to nil
 		nullTables = append(nullTables, findNullTables(cols, nullCols))
 
 		if err := rows.Scan(pointers...); err != nil {
@@ -508,6 +514,45 @@ Rows:
 	}
 
 	return nullTables, nil
+}
+
+func nullType(curType interface{}) interface{} {
+	// switch curType.(type) {
+	// case *int8:
+	// 	return new(null.Int8)
+	// case *int16:
+	// 	return new(null.Int16)
+	// case *int32:
+	// 	return new(null.Int32)
+	// case *int64:
+	// 	return new(null.Int64)
+	// case *int:
+	// 	return new(null.Int)
+	// case *uint8:
+	// 	return new(null.Uint8)
+	// case *uint16:
+	// 	return new(null.Uint16)
+	// case *uint32:
+	// 	return new(null.Uint32)
+	// case *uint64:
+	// 	return new(null.Uint64)
+	// case *uint:
+	// 	return new(null.Uint)
+	// case *float32:
+	// 	return new(null.Float32)
+	// case *float64:
+	// 	return new(null.Float64)
+	// case *string:
+	// 	return new(null.String)
+	// case []byte:
+	// 	return new(null.Bytes)
+	// case *bool:
+	// 	return new(null.Bool)
+	// case *time.Time:
+	// 	return new(null.Time)
+	// }
+
+	return new(sql.RawBytes)
 }
 
 // findNullTables: if every value for a given table was nil, then add it to our list of null tables
@@ -1095,7 +1140,7 @@ var specialWordReplacer = strings.NewReplacer(
 
 // unTitleCase attempts to undo a title-cased string.
 //
-// DO NOT USE THIS METHOD IF YOU CAN AVOID IT
+// # DO NOT USE THIS METHOD IF YOU CAN AVOID IT
 //
 // Normally this would be easy but we have to deal with uppercased words
 // of varying lengths. We almost never use this function so it
