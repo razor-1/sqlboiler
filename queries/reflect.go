@@ -459,12 +459,6 @@ Rows:
 			pointers = PtrsFromMapping(reflect.Indirect(newStruct), mapping)
 		}
 
-		// any of the nullable joined columns could be null, even though the actual type of the column in the other
-		// table is not null, because it's a left join
-		// for i := range nullableIndexes {
-		// 	pointers[i] = nullType(pointers[i])
-		// }
-
 		if len(nullableIndexes) > 0 {
 			nullablePointers := make([]interface{}, len(pointers))
 			for i := 0; i < len(nullablePointers); i++ {
@@ -514,45 +508,6 @@ Rows:
 	}
 
 	return nullTables, nil
-}
-
-func nullType(curType interface{}) interface{} {
-	// switch curType.(type) {
-	// case *int8:
-	// 	return new(null.Int8)
-	// case *int16:
-	// 	return new(null.Int16)
-	// case *int32:
-	// 	return new(null.Int32)
-	// case *int64:
-	// 	return new(null.Int64)
-	// case *int:
-	// 	return new(null.Int)
-	// case *uint8:
-	// 	return new(null.Uint8)
-	// case *uint16:
-	// 	return new(null.Uint16)
-	// case *uint32:
-	// 	return new(null.Uint32)
-	// case *uint64:
-	// 	return new(null.Uint64)
-	// case *uint:
-	// 	return new(null.Uint)
-	// case *float32:
-	// 	return new(null.Float32)
-	// case *float64:
-	// 	return new(null.Float64)
-	// case *string:
-	// 	return new(null.String)
-	// case []byte:
-	// 	return new(null.Bytes)
-	// case *bool:
-	// 	return new(null.Bool)
-	// case *time.Time:
-	// 	return new(null.Time)
-	// }
-
-	return new(sql.RawBytes)
 }
 
 // findNullTables: if every value for a given table was nil, then add it to our list of null tables
