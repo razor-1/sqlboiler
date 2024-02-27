@@ -28,3 +28,16 @@ var TableNameToTableColumns = map[string][]string{
 	TableNames.{{titleCase $table.Name}}: {{$alias.DownSingular}}AllColumns,
 {{end -}}
 }
+
+var SpatialTableColumns = map[string]map[string]bool{
+{{range $table := .Tables -}}
+	{{- $alias := $.Aliases.Table $table.Name -}}
+	TableNames.{{titleCase $table.Name}}: {
+		{{- range $column := $table.Columns -}}
+			{{- if $column.IsSpatialGeoJSON }}
+				{{$alias.UpSingular}}Columns.{{$alias.Column $column.Name}}: true,
+			{{end -}}
+		{{end -}}
+	},
+{{end -}}
+}
