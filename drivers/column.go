@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/volatiletech/strmangle"
 )
@@ -36,6 +37,15 @@ type Column struct {
 	// tinyint(1) instead of tinyint
 	// Used for "tinyint-as-bool" flag
 	FullDBType string `json:"full_db_type" toml:"full_db_type"`
+}
+
+func (c Column) IsSpatialGeoJSON() bool {
+	switch strings.ToUpper(strings.TrimSpace(c.DBType)) {
+	// note that we specifically do not include POINT, because that's handled in types/mygeo
+	case "GEOMETRY", "LINESTRING", "POLYGON", "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION":
+		return true
+	}
+	return false
 }
 
 // ColumnNames of the columns.

@@ -53,6 +53,18 @@ func makeCacheKey(cols boil.Columns, nzDefaults []string) string {
 	return str
 }
 
+var SpatialAsGeoJSON = true
+
+// isSpatialGeoJSON returns true if SpatialAsGeoJSON is true and the column is of a spatial type.
+func isSpatialGeoJSON(table, column string) bool {
+    if !SpatialAsGeoJSON { return false }
+	if tableMap, ok := SpatialTableColumns[table]; ok {
+		return tableMap[column]
+	}
+
+	return false
+}
+
 // bind needs the fully qualified column names to handle possible duplicate column names in different tables
 // this is a a helper that takes a slice of column names and a table name and creates a query that makes
 // them all unique, in the form of `table`.`column` AS "table.column"
@@ -63,7 +75,11 @@ func FullyQualifiedColumns(tableName string) string {
 	}
 	components := make([]string, len(columns))
 	for i, column := range columns {
-		components[i] = fmt.Sprintf("`%s`.`%s` AS \"%s.%s\"", tableName, column, tableName, column)
+		fqColumn := fmt.Sprintf("`%s`.`%s`", tableName, column)
+		if isSpatialGeoJSON(tableName, column) {
+			fqColumn = fmt.Sprintf("ST_AsGeoJSON(%s)", fqColumn)
+		}
+		components[i] = fmt.Sprintf(`%s AS "%s.%s"`, fqColumn, tableName, column)
 	}
 
 	return strings.Join(components, ",")
