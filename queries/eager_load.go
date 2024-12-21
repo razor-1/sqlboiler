@@ -116,7 +116,17 @@ func eagerLoadJoin(q *Query, obj interface{}, bkind bindKind) (newObj interface{
 	if intf := ret[0].Interface(); intf != nil {
 		newQuery := intf.(*Query)
 		q.selectCols = newQuery.selectCols
-		q.joins = newQuery.joins
+		// we're going to assume that all INNER joins are covered by the LoadJoin
+		// but we allow any other join types to also be present
+		newJoins := make([]join, len(newQuery.joins))
+		copy(newJoins, newQuery.joins)
+		for _, existingJoin := range q.joins {
+			if existingJoin.kind == JoinInner {
+				continue
+			}
+			newJoins = append(newJoins, existingJoin)
+		}
+		q.joins = newJoins
 		if isSlice {
 			newType := reflect.SliceOf(reflect.TypeOf(ret[1].Interface()))
 			newObj = reflect.New(newType).Interface()
@@ -133,7 +143,7 @@ func eagerLoadJoin(q *Query, obj interface{}, bkind bindKind) (newObj interface{
 // loadRelationships dynamically calls the template generated eager load
 // functions of the form:
 //
-//   func (t *TableR) LoadRelationshipName(exec Executor, singular bool, obj interface{})
+//	func (t *TableR) LoadRelationshipName(exec Executor, singular bool, obj interface{})
 //
 // The arguments to this function are:
 //   - t is not considered here, and is always passed nil. The function exists on a loaded
@@ -145,11 +155,12 @@ func eagerLoadJoin(q *Query, obj interface{}, bkind bindKind) (newObj interface{
 //
 // We start with a normal select before eager loading anything: select * from a;
 // Then we start eager loading things, it can be represented by a DAG
-//          a1, a2           select id, a_id from b where id in (a1, a2)
-//         / |    \
-//        b1 b2    b3        select id, b_id from c where id in (b2, b3, b4)
-//       /   | \     \
-//      c1  c2 c3    c4
+//
+//	    a1, a2           select id, a_id from b where id in (a1, a2)
+//	   / |    \
+//	  b1 b2    b3        select id, b_id from c where id in (b2, b3, b4)
+//	 /   | \     \
+//	c1  c2 c3    c4
 //
 // That's to say that we descend the graph of relationships, and at each level
 // we gather all the things up we want to load into, load them, and then move
@@ -284,7 +295,7 @@ func (l loadRelationshipState) loadRelationshipsRecurse(depth int, obj reflect.V
 		// elemType is *elem (from []*elem or helperSliceType)
 		// sliceType is *[]*elem
 		elemType := derefed.Type().Elem()
-		sliceType := reflect.PtrTo(reflect.SliceOf(elemType))
+		sliceType := reflect.PointerTo(reflect.SliceOf(elemType))
 
 		loadedObject = loadedObject.Addr().Convert(sliceType)
 	}
@@ -296,9 +307,9 @@ func (l loadRelationshipState) loadRelationshipsRecurse(depth int, obj reflect.V
 //
 // For example when loadingFrom is [parent1, parent2]
 //
-//   parent1 -> child1
-//          \-> child2
-//   parent2 -> child3
+//	parent1 -> child1
+//	       \-> child2
+//	parent2 -> child3
 //
 // This should return [child1, child2, child3]
 func collectLoaded(key string, loadingFrom reflect.Value) (reflect.Value, bindKind, error) {
@@ -377,7 +388,7 @@ var (
 func SetFromEmbeddedStruct(to interface{}, from interface{}) bool {
 	toPtrVal := reflect.ValueOf(to)
 	fromPtrVal := reflect.ValueOf(from)
-	if toPtrVal.Kind() != reflect.Ptr || fromPtrVal.Kind() != reflect.Ptr {
+	if toPtrVal.Kind() != reflect.Pointer || fromPtrVal.Kind() != reflect.Pointer {
 		return false
 	}
 	toStructTyp, ok := singularStructType(to)
@@ -401,8 +412,8 @@ func SetFromEmbeddedStruct(to interface{}, from interface{}) bool {
 		fromVal = reflect.ValueOf(fromVal.Interface())
 	}
 
-	if toVal.Kind() == reflect.Ptr && toVal.Elem().Kind() == reflect.Struct &&
-		fromVal.Kind() == reflect.Ptr && fromVal.Elem().Kind() == reflect.Struct {
+	if toVal.Kind() == reflect.Pointer && toVal.Elem().Kind() == reflect.Struct &&
+		fromVal.Kind() == reflect.Pointer && fromVal.Elem().Kind() == reflect.Struct {
 		toVal.Set(fromVal.Elem().Field(fieldNum).Addr())
 
 		return true
@@ -436,7 +447,7 @@ func singularStructType(obj interface{}) (reflect.Type, bool) {
 	inSlice := false
 SWITCH:
 	switch typ.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		typ = typ.Elem()
 
 		goto SWITCH

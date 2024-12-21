@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	bindAccepts = []reflect.Kind{reflect.Ptr, reflect.Slice, reflect.Ptr, reflect.Struct}
+	bindAccepts = []reflect.Kind{reflect.Pointer, reflect.Slice, reflect.Pointer, reflect.Struct}
 
 	mut         sync.RWMutex
 	bindingMaps = make(map[string][]uint64)
@@ -204,7 +204,7 @@ func (q *Query) Bind(ctx context.Context, exec boil.Executor, obj interface{}) e
 				return err
 			}
 		} else {
-			return errors.New("unsupported bindKind for loadJoin: " + string(bkind))
+			return fmt.Errorf("unsupported bindKind for loadJoin: %d", bkind)
 		}
 	}
 
@@ -245,7 +245,7 @@ func processLoadJoinStruct(currentObjVal, objVal reflect.Value, nullTables []str
 	rStruct := reflect.Indirect(reflect.New(relationshipStruct.Type().Elem()))
 	for i := 0; i < rStruct.NumField(); i++ {
 		f := rStruct.Field(i)
-		if f.Kind() == reflect.Ptr {
+		if f.Kind() == reflect.Pointer {
 			baseType := f.Type().Elem()
 			fieldTypeName := f.Type().Elem().Name()
 			if _, ok := nilRTypes[fieldTypeName]; ok {
@@ -283,7 +283,7 @@ func bindChecks(obj interface{}) (structType reflect.Type, sliceType reflect.Typ
 	for i := 0; ; i++ {
 		switch i {
 		case 0:
-			if kind != reflect.Ptr {
+			if kind != reflect.Pointer {
 				setErr()
 				return
 			}
@@ -305,7 +305,7 @@ func bindChecks(obj interface{}) (structType reflect.Type, sliceType reflect.Typ
 				structType = typ
 				bkind = kindSliceStruct
 				return
-			case reflect.Ptr:
+			case reflect.Pointer:
 			default:
 				setErr()
 				return
@@ -624,16 +624,16 @@ func ptrFromMapping(val reflect.Value, mapping uint64, addressOf bool) reflect.V
 		v := (mapping >> uint(i*8)) & sentinel
 
 		if v == sentinel {
-			if addressOf && val.Kind() != reflect.Ptr {
+			if addressOf && val.Kind() != reflect.Pointer {
 				return val.Addr()
-			} else if !addressOf && val.Kind() == reflect.Ptr {
+			} else if !addressOf && val.Kind() == reflect.Pointer {
 				return reflect.Indirect(val)
 			}
 			return val
 		}
 
 		val = val.Field(int(v))
-		if val.Kind() == reflect.Ptr {
+		if val.Kind() == reflect.Pointer {
 			val = reflect.Indirect(val)
 		}
 	}
@@ -650,7 +650,7 @@ func MakeStructMapping(typ reflect.Type) map[string]uint64 {
 }
 
 func makeStructMappingHelper(typ reflect.Type, prefix string, current uint64, depth uint, fieldMaps map[string]uint64) {
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 
